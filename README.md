@@ -1,3 +1,3 @@
 # LVM
 ### LVM (LOMA VIRTUAL MACHINE).
-### LOMA bytecode definition and an emulator (virtual machine).
+### LOMA bytecode definition and emulator (virtual machine).
