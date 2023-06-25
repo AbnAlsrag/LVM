@@ -2,16 +2,27 @@ workspace "LVM"
     configurations { "Debug", "Dev", "Release" }
 
     architecture "x64"
-    startproject "LVM"
+    startproject "LVME"
     compileas "C"
-
     
     output_dir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
     
     -- //LVM// --
     project "LVM"
-        warnings "Extra"
+        warnings "Default"
         location "LVM"
+        kind "None"
+        language "C"
+        
+        files {
+            "%{prj.name}/src/**.h",
+            "%{prj.name}/src/**.c",
+        }
+
+    -- //LVME// --
+    project "LVME"
+        warnings "Default"
+        location "LVME"
         kind "ConsoleApp"
         language "C"
         
@@ -51,7 +62,7 @@ workspace "LVM"
 
     -- //LDB// --
     project "LDB"
-        warnings "Extra"
+        warnings "Default"
         location "LDB"
         kind "ConsoleApp"
         language "C"
@@ -65,7 +76,7 @@ workspace "LVM"
         }
 
         includedirs {
-            "LDB/src"
+            "LVM/src"
         }
         
         filter "system:windows"

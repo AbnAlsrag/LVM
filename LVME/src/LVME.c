@@ -1,5 +1,5 @@
 #define LVM_IMPLEMENTATION
-#include "LVM.h"
+#include <LVM.h>
 
 #ifdef _WIN32
 #define WINPAUSE system("pause")

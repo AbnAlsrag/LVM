@@ -17,7 +17,13 @@
 #define LVM_PROGRAM_MAX 1024
 #define LVM_NATIVE_MAX 1024
 
-typedef int64_t Word;
+typedef union Word {
+	int64_t as_i64;
+	uint64_t as_u64;
+	double as_f64;
+	void* as_ptr;
+} Word;
+
 typedef uint64_t LVM_OpAddr;
 
 typedef enum LVM_ExceptionType {
@@ -181,7 +187,7 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 		lvm->stack_size--;
 		break;
 	case LVM_OP_DUP:
-		if (operation.operand < 0 || operation.operand >= lvm->stack_size) {
+		if (operation.operand.as_u64 < 0 || operation.operand.as_u64 >= lvm->stack_size) {
 			return LVM_ET_ILLEGAL_OPERAND;
 		}
 
@@ -189,18 +195,19 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_OVERFLOW;
 		}
 
-		if (lvm->stack_size - operation.operand <= 0) {
+		if (lvm->stack_size - operation.operand.as_u64 <= 0) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		lvm->stack[lvm->stack_size++] = lvm->stack[lvm->stack_size - 1 - operation.operand];
+		lvm->stack[lvm->stack_size] = lvm->stack[(lvm->stack_size - 1) - operation.operand.as_u64];
+		lvm->stack_size++;
 		break;
 	case LVM_OP_ADD:
 		if (lvm->stack_size < 2) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		lvm->stack[lvm->stack_size - 2] += lvm->stack[lvm->stack_size - 1];
+		lvm->stack[lvm->stack_size - 2].as_i64 += lvm->stack[lvm->stack_size - 1].as_i64;
 		lvm->stack_size--;
 		break;
 	case LVM_OP_SUB:
@@ -208,7 +215,7 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		lvm->stack[lvm->stack_size - 2] -= lvm->stack[lvm->stack_size - 1];
+		lvm->stack[lvm->stack_size - 2].as_i64 -= lvm->stack[lvm->stack_size - 1].as_i64;
 		lvm->stack_size--;
 		break;
 	case LVM_OP_MULT:
@@ -216,7 +223,7 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		lvm->stack[lvm->stack_size - 2] *= lvm->stack[lvm->stack_size - 1];
+		lvm->stack[lvm->stack_size - 2].as_i64 *= lvm->stack[lvm->stack_size - 1].as_i64;
 		lvm->stack_size--;
 		break;
 	case LVM_OP_DIV:
@@ -224,24 +231,24 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		if (lvm->stack[lvm->stack_size - 1] == 0) {
+		if (lvm->stack[lvm->stack_size - 1].as_u64 == 0) {
 			return LVM_ET_DIV_BY_ZERO;
 		}
 
-		lvm->stack[lvm->stack_size - 2] /= lvm->stack[lvm->stack_size - 1];
+		lvm->stack[lvm->stack_size - 2].as_i64 /= lvm->stack[lvm->stack_size - 1].as_i64;
 		lvm->stack_size--;
 		break;
 	case LVM_OP_JMP:
-		lvm->ip = operation.operand - 1;
+		lvm->ip = operation.operand.as_u64 - 1;
 		break;
 	case LVM_OP_JMP_IF:
 		if (lvm->stack_size < 1) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		if (lvm->stack[lvm->stack_size - 1]) {
+		if (lvm->stack[lvm->stack_size - 1].as_i64) {
 			lvm->stack_size--;
-			lvm->ip = operation.operand - 1;
+			lvm->ip = operation.operand.as_u64 - 1;
 		}
 		break;
 	case LVM_OP_EQ:
@@ -249,7 +256,7 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		lvm->stack[lvm->stack_size - 2] = lvm->stack[lvm->stack_size - 2] == lvm->stack[lvm->stack_size - 1];
+		lvm->stack[lvm->stack_size - 2].as_i64 = lvm->stack[lvm->stack_size - 2].as_i64 == lvm->stack[lvm->stack_size - 1].as_i64;
 		lvm->stack_size--;
 		break;
 	case LVM_OP_HLT:
@@ -260,7 +267,7 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		LVM_ExceptionType exception = lvm->natives[operation.operand](lvm);
+		LVM_ExceptionType exception = lvm->natives[operation.operand.as_u64](lvm);
 		lvm->ip++;
 		return exception;
 		break;
@@ -269,7 +276,7 @@ LVM_ExceptionType LVM_execute_LVM_Operation(LVM* lvm) {
 			return LVM_ET_STACK_UNDERFLOW;
 		}
 
-		printf("%lld\n", lvm->stack[lvm->stack_size - 1]);
+		printf("%lld\n", lvm->stack[lvm->stack_size - 1].as_i64);
 		lvm->stack_size--;
 		break;
 	default:
@@ -306,8 +313,9 @@ void LVM_dump_stack(FILE* stream, const LVM* lvm) {
 	fprintf(stream, "Stack:\n");
 
 	if (lvm->stack_size > 0) {
-		for (Word i = 0; i < lvm->stack_size; i++) {
-			fprintf(stream, "  %lld\n", lvm->stack[i]);
+		for (uint64_t i = 0; i < lvm->stack_size; i++) {
+			fprintf(stream, "  i64:%lld, u64:%llu, f64:%lf, ptr:0x%x\n",
+				lvm->stack[i].as_i64, lvm->stack[i].as_u64, lvm->stack[i].as_f64, lvm->stack[i].as_ptr);
 		}
 	}
 	else {
