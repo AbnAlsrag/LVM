@@ -1,0 +1,14 @@
+﻿  LDB.c
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(184,50): warning C4018: '>=': signed/unsigned mismatch
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(309,22): warning C4018: '<': signed/unsigned mismatch
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(319,15): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(322,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(329,72): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(343,15): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(346,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(351,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(358,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(363,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+E:\HALM games studio\LOMA Project\LVM\LDB\src\LDB.c(10,31): warning C4100: 'count': unreferenced formal parameter
+E:\HALM games studio\LOMA Project\LVM\LDB\src\LDB.c(10,21): warning C4100: 'args': unreferenced formal parameter
+  LDB.vcxproj -> E:\HALM games studio\LOMA Project\LVM\bin\Debug-windows-x86_64\LDB\LDB.exe
