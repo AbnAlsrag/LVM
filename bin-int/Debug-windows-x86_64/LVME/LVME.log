@@ -1,12 +1,11 @@
-﻿  LVME.c
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(317,20): warning C4477: 'fprintf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 4 has type 'void *const '
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(317,20): warning C4313: 'fprintf': '%x' in format string conflicts with argument 4 of type 'void *const '
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(327,15): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(330,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(337,72): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(351,15): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(354,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(359,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(366,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-E:\HALM games studio\LOMA Project\LVM\LVM\src\LVM.h(371,68): warning C4996: 'strerror': This function or variable may be unsafe. Consider using strerror_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  LVME.vcxproj -> E:\HALM games studio\LOMA Project\LVM\bin\Debug-windows-x86_64\LVME\LVME.exe
+﻿  Assembling src\test.asm...
+src\test.asm(1): error A2008: syntax error : .
+src\test.asm(2): error A2008: syntax error : .
+src\test.asm(3): error A2008: syntax error : .
+src\test.asm(4): error A2008: syntax error : ,
+src\test.asm(12): error A2008: syntax error : eax
+src\test.asm(14): error A2008: syntax error : sum
+src\test.asm(16): error A2008: syntax error : invoke
+src\test.asm(19): error A2008: syntax error : main
+src\test.asm(19): error A2088: END directive required at end of file
+C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\BuildCustomizations\masm.targets(70,5): error MSB3721: The command "ml64.exe /c /nologo /Zi /Fo"..\bin-int\Debug-windows-x86_64\LVME\test.obj" /W3 /errorReport:prompt  /Tasrc\test.asm" exited with code 1.

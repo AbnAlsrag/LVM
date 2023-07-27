@@ -40,10 +40,6 @@ workspace "LVM"
         
         filter "system:windows"
             systemversion "latest"
-            
-            defines {
-                "LVM_PLATFORM_WINDOWS"
-            }
  
         filter "configurations:Debug"
             defines { "LVM_Debug" }
@@ -81,10 +77,6 @@ workspace "LVM"
         
         filter "system:windows"
             systemversion "latest"
-            
-            defines {
-                "LVM_PLATFORM_WINDOWS"
-            }
  
         filter "configurations:Debug"
             defines { "LVM_Debug" }
