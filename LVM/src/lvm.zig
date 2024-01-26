@@ -2,7 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 
 const MAGIC = 0x45564F4C;
-const VERSION = 10;
+const VERSION = 0;
 
 const INSTS_SIZE = 1024;
 const MEMORY_SIZE = 1024;
@@ -403,41 +403,38 @@ pub const Machine = struct {
         var file = try std.fs.cwd().createFile(path, .{});
         defer file.close();
 
-        var buffered = std.io.bufferedWriter(file.writer());
+        var buf_writer = std.io.bufferedWriter(file.writer());
+        var out_stream = buf_writer.writer();
 
-        var meta_data = MetaData.create(self.program_size, 0);
-        var meta: [@sizeOf(MetaData)]u8 = @as([*]u8, @ptrCast(&meta_data))[0..@sizeOf(MetaData)].*;
+        const meta_data = MetaData.create(self.program_size, 0);
 
-        const prog: []const u8 = std.mem.sliceAsBytes(self.program[0..self.program_size]);
+        _ = try out_stream.writeInt(u32, meta_data.magic, .Little);
+        _ = try out_stream.writeInt(u16, meta_data.version, .Little);
+        _ = try out_stream.writeInt(u64, meta_data.program_size, .Little);
+        _ = try out_stream.writeInt(u64, meta_data.memory_size, .Little);
 
-        _ = try buffered.write(meta[0..meta.len]);
-        _ = try buffered.write(prog);
+        _ = try out_stream.writeAll(@as([*]const u8, @ptrCast(&self.program))[0 .. self.program_size * @sizeOf(Inst)]);
 
-        try buffered.flush();
+        try buf_writer.flush();
     }
 
     //TODO: add error checking for file loading
     pub fn loadFromFile(self: *Machine, path: []const u8) !void {
-        _ = path;
-        _ = self;
-        var file = try std.fs.cwd().openFile("test.bin", .{});
+        var file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
 
-        var buffered = std.io.bufferedReader(file.reader());
-        var reader = buffered.reader();
+        var buf_reader = std.io.bufferedReader(file.reader());
+        var in_stream = buf_reader.reader();
 
         var meta_data: MetaData = undefined;
 
-        _ = try reader.read(std.mem.asBytes(&meta_data.magic));
+        meta_data.magic = try in_stream.readInt(u32, .Little);
+        meta_data.version = try in_stream.readInt(u16, .Little);
+        meta_data.program_size = try in_stream.readInt(u64, .Little);
+        meta_data.memory_size = try in_stream.readInt(u64, .Little);
 
-        std.debug.print("{}, ({})\n", .{ meta_data, MAGIC });
-        std.debug.print("{any}\n", .{std.mem.asBytes(&meta_data).*});
+        self.program_size = meta_data.program_size;
 
-        std.debug.assert(meta_data.magic == MAGIC);
-
-        // _ = try reader.read(std.mem.sliceAsBytes(self.program[0..meta_data.program_size]));
-
-        // std.debug.print("{any}\n", .{self.program[0..meta_data.program_size]});
-        // std.debug.print("{any}\n", .{std.mem.sliceAsBytes(self.program[0..meta_data.program_size])});
+        _ = try in_stream.readAll(@as([*]u8, @ptrCast(&self.program))[0 .. self.program_size * @sizeOf(Inst)]);
     }
 };
