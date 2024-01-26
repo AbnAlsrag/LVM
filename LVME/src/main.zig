@@ -21,15 +21,15 @@ pub fn main() !void {
 
     // std.debug.print("{}\n{}\n", .{ 0x45564F4C, magic });
 
-    var machine: lvm.Machine = lvm.Machine.create(512);
+    var machine: lvm.Machine = lvm.Machine.init(512);
 
-    // machine.pushInst(lvm.Inst{ .type = lvm.InstType.ldi, .operand = ((0 << 62) | 5) });
-    // machine.pushInst(lvm.Inst{ .type = lvm.InstType.print_debug, .operand = 0 });
-    // machine.pushInst(lvm.Inst{ .type = lvm.InstType.hlt, .operand = 0 });
+    machine.pushInst(lvm.Inst.init(.ldi, .{ 0, lvm.wordFromF64(1.5) }));
+    machine.pushInst(lvm.Inst.init(.print_debug, .{ 0, 0 }));
+    machine.pushInst(lvm.Inst.init(.hlt, .{ 0, 0 }));
 
-    // try machine.saveToFile("test.melf");
+    try machine.saveToFile("test.melf");
 
-    try machine.loadFromFile("test.melf");
+    // try machine.loadFromFile("test.melf");
 
     machine.run(-1);
 }
