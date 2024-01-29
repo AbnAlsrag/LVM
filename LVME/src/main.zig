@@ -22,14 +22,13 @@ pub fn main() !void {
     // std.debug.print("{}\n{}\n", .{ 0x45564F4C, magic });
 
     var machine: lvm.Machine = lvm.Machine.init(512);
+    _ = machine;
 
-    machine.pushInst(lvm.Inst.init(.ldi, .{ 0, lvm.wordFromF64(1.5) }));
-    machine.pushInst(lvm.Inst.init(.print_debug, .{ 0, 0 }));
-    machine.pushInst(lvm.Inst.init(.hlt, .{ 0, 0 }));
+    // machine.pushInst(lvm.Inst.init(.hlt, .{ 0, 0 }));
 
-    try machine.saveToFile("test.melf");
+    // try machine.saveToFile("test.melf");
 
     // try machine.loadFromFile("test.melf");
 
-    machine.run(-1);
+    // machine.run(-1);
 }
