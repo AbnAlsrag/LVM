@@ -162,6 +162,7 @@ pub const InstType = enum(u8) {
     store64,
     load64,
     hlt,
+    inst_max,
 };
 
 //TODO: add inst def
@@ -197,7 +198,7 @@ const InstDef = struct {
     }
 };
 
-const inst_defs_lut: []InstDef = [_]InstDef{
+const inst_defs_lut: [@intFromEnum(InstType.inst_max)]InstDef = [_]InstDef{
     InstDef.init(.nop),
     InstDef.init(.pushi),
     InstDef.init(.push),
@@ -273,6 +274,16 @@ const inst_defs_lut: []InstDef = [_]InstDef{
 pub fn getInstTypeName(inst_type: InstType) []const u8 {
     _ = inst_type;
     return inst_defs_lut[@intFromEnum(InstType)].name;
+}
+
+pub fn isInst(name: []const u8) ?InstType {
+    for (inst_defs_lut) |inst_def| {
+        if (std.mem.eql(u8, name, inst_def.name)) {
+            return inst_def.type;
+        }
+    }
+
+    return null;
 }
 
 pub const Inst = struct {
@@ -598,6 +609,9 @@ pub const Machine = struct {
             },
             InstType.hlt => {
                 self.hlt = true;
+            },
+            InstType.inst_max => {
+                @panic("Unkown instruction");
             },
         }
     }
