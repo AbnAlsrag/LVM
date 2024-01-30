@@ -186,57 +186,89 @@ const Output = struct {
 const InstDef = struct {
     type: InstType,
     name: []const u8,
-    takes_operands: bool,
-    operands_types: [2]Type,
-    operands_size: usize,
-    has_input: bool,
-    input: [2]Type,
-    input_size: usize,
-    has_output: bool,
-    output: Output,
 
     //TODO: Improve errors
-    fn init(comptime typ: InstType, comptime operands: []Type, comptime input: []Type, comptime output: []Output) InstDef {
+    fn init(comptime typ: InstType) InstDef {
         var def: InstDef = undefined;
         def.type = typ;
         def.name = @tagName(typ);
-
-        comptime if (operands.len == 0) {
-            def.takes_operands = false;
-            def.operands_size = 0;
-        } else if (operands.len < 3) {
-            def.takes_operands = true;
-            def.operands_size = operands.len;
-            def.operands_types = operands;
-        } else {
-            @compileError("Can't have more than two operands\n");
-        };
-
-        comptime if (input.len == 0) {
-            def.has_input = false;
-            def.input_size = 0;
-        } else if (input.len < 3) {
-            def.has_input = true;
-            def.input_size = operands.len;
-            def.input = operands;
-        } else {
-            @compileError("Can't have more than two operands\n");
-        };
-
-        comptime if (output.len == 0) {
-            def.has_output = false;
-        } else if (output.len == 1) {
-            def.has_output = true;
-            def.output = output;
-        } else {
-            @compileError("Can't have more than one output\n");
-        };
 
         return def;
     }
 };
 
-const inst_defs_lut: []InstDef = [_]InstDef{};
+const inst_defs_lut: []InstDef = [_]InstDef{
+    InstDef.init(.nop),
+    InstDef.init(.pushi),
+    InstDef.init(.push),
+    InstDef.init(.pop),
+    InstDef.init(.pusha),
+    InstDef.init(.popa),
+    InstDef.init(.enter),
+    InstDef.init(.leave),
+    InstDef.init(.dup),
+    InstDef.init(.mov),
+    InstDef.init(.inc),
+    InstDef.init(.incf),
+    InstDef.init(.dec),
+    InstDef.init(.decf),
+    InstDef.init(.neg),
+    InstDef.init(.addi),
+    InstDef.init(.addu),
+    InstDef.init(.addf),
+    InstDef.init(.subi),
+    InstDef.init(.subu),
+    InstDef.init(.subf),
+    InstDef.init(.muli),
+    InstDef.init(.mulu),
+    InstDef.init(.mulf),
+    InstDef.init(.divi),
+    InstDef.init(.divu),
+    InstDef.init(.divf),
+    InstDef.init(.mod),
+    InstDef.init(.modf),
+    InstDef.init(.eq),
+    InstDef.init(.neq),
+    InstDef.init(.gti),
+    InstDef.init(.gtf),
+    InstDef.init(.gei),
+    InstDef.init(.gef),
+    InstDef.init(.sti),
+    InstDef.init(.stf),
+    InstDef.init(.sei),
+    InstDef.init(.sef),
+    InstDef.init(.andl),
+    InstDef.init(.orl),
+    InstDef.init(.notl),
+    InstDef.init(.andb),
+    InstDef.init(.orb),
+    InstDef.init(.xor),
+    InstDef.init(.notb),
+    InstDef.init(.shl),
+    InstDef.init(.shr),
+    InstDef.init(.rotl),
+    InstDef.init(.rotr),
+    InstDef.init(.jmp),
+    InstDef.init(.jz),
+    InstDef.init(.jnz),
+    InstDef.init(.call),
+    InstDef.init(.native),
+    InstDef.init(.ret),
+    InstDef.init(.itf),
+    InstDef.init(.utf),
+    InstDef.init(.fti),
+    InstDef.init(.ftu),
+    InstDef.init(.ldi),
+    InstDef.init(.store8),
+    InstDef.init(.load8),
+    InstDef.init(.store16),
+    InstDef.init(.load16),
+    InstDef.init(.store32),
+    InstDef.init(.load32),
+    InstDef.init(.store64),
+    InstDef.init(.load64),
+    InstDef.init(.hlt),
+};
 
 pub fn getInstTypeName(inst_type: InstType) []const u8 {
     _ = inst_type;
