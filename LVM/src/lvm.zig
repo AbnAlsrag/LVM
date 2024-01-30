@@ -392,6 +392,7 @@ pub const Machine = struct {
             },
             InstType.push => {
                 var register = inst.operand0;
+                self.stack_top -= 8;
                 std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], register, .Little);
                 self.ip += 1;
             },
@@ -415,7 +416,10 @@ pub const Machine = struct {
                 @panic("Unimplemented");
             },
             InstType.dup => {
-                @panic("Unimplemented");
+                var value = std.mem.readInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], .Little);
+                self.stack_top -= 8;
+                std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], value, .Little);
+                self.ip += 1;
             },
             InstType.mov => {
                 @panic("Unimplemented");
