@@ -31,7 +31,12 @@ const VERSION = 0;
 
 const INSTS_SIZE = 1024;
 const MEMORY_SIZE = 1024;
+const NATIVE_SIZE = 1024;
 const REGISTER_COUNT = 5;
+
+const REGISTER_SIZE = 8;
+
+pub const Register = u64;
 
 pub const Word = u64;
 
@@ -88,21 +93,31 @@ const Type = enum(u8) {
 
 pub const InstType = enum(u8) {
     nop,
+    pushi,
     push,
-    dup,
     pop,
+    pusha,
+    popa,
+    enter,
+    leave,
+    dup,
     mov,
     inc,
     incf,
     dec,
     decf,
-    add,
+    neg,
+    addi,
+    addu,
     addf,
-    sub,
+    subi,
+    subu,
     subf,
-    mul,
+    muli,
+    mulu,
     mulf,
-    div,
+    divi,
+    divu,
     divf,
     mod,
     modf,
@@ -128,8 +143,8 @@ pub const InstType = enum(u8) {
     rotl,
     rotr,
     jmp,
-    jmpz,
-    jmpnz,
+    jz,
+    jnz,
     call,
     native,
     ret,
@@ -221,68 +236,7 @@ const InstDef = struct {
     }
 };
 
-const inst_defs_lut: []InstDef = [_]InstDef{
-    InstDef.init(.nop, .{}, .{}, .{}),
-    InstDef.init(.push, .{ .bool, .any }, .{.any}, .{Output.init(.any, .stack)}),
-    InstDef.init(.dup, .{}, .{.any}, .{Output.init(.any, .stack)}),
-    InstDef.init(.pop, .{.register}, .{.any}, .{Output.init(.any, .register)}),
-    InstDef.init(.mov, .{ .register, .register }, .{.any}, .{Output.init(.any, .register)}),
-    InstDef.init(.inc, .{}, .{.int}, .{Output.init(.int, .register)}),
-    InstDef.init(.incf, .{}, .{.float}, .{Output.init(.float, .register)}),
-    InstDef.init(.dec, .{}, .{.int}, .{Output.init(.int, .register)}),
-    InstDef.init(.decf, .{}, .{.float}, .{Output.init(.float, .register)}),
-    InstDef.init(.add, .{}, .{ .int, .int }, .{Output.init(.int, .register)}),
-    InstDef.init(.addf, .{}, .{ .float, .float }, .{Output.init(.float, .register)}),
-    InstDef.init(.sub, .{}, .{ .int, .int }, .{Output.init(.int, .register)}),
-    InstDef.init(.subf, .{}, .{ .float, .float }, .{Output.init(.float, .register)}),
-    InstDef.init(.mul, .{}, .{ .int, .int }, .{Output.init(.int, .register)}),
-    InstDef.init(.mulf, .{}, .{ .float, .float }, .{Output.init(.float, .register)}),
-    InstDef.init(.div, .{}, .{ .int, .int }, .{Output.init(.int, .register)}),
-    InstDef.init(.divf, .{}, .{ .float, .float }, .{Output.init(.float, .register)}),
-    InstDef.init(.mod, .{}, .{ .int, .int }, .{Output.init(.int, .register)}),
-    InstDef.init(.modf, .{}, .{ .float, .float }, .{Output.init(.float, .register)}),
-    InstDef.init(.eq, .{}, .{ .any, .any }, .{Output.init(.bool, .register)}),
-    InstDef.init(.neq, .{}, .{ .any, .any }, .{Output.init(.bool, .register)}),
-    InstDef.init(.gti, .{}, .{ .int, .int }, .{Output.init(.bool, .register)}),
-    InstDef.init(.gtf, .{}, .{ .float, .float }, .{Output.init(.bool, .register)}),
-    InstDef.init(.gei, .{}, .{ .int, .int }, .{Output.init(.bool, .register)}),
-    InstDef.init(.gef, .{}, .{ .float, .float }, .{Output.init(.bool, .register)}),
-    InstDef.init(.sti, .{}, .{ .int, .int }, .{Output.init(.bool, .register)}),
-    InstDef.init(.stf, .{}, .{ .float, .float }, .{Output.init(.bool, .register)}),
-    InstDef.init(.sei, .{}, .{ .int, .int }, .{Output.init(.bool, .register)}),
-    InstDef.init(.sef, .{}, .{ .float, .float }, .{Output.init(.bool, .register)}),
-    InstDef.init(.andl, .{}, .{ .bool, .bool }, .{Output.init(.bool, .register)}),
-    InstDef.init(.orll, .{}, .{ .bool, .bool }, .{Output.init(.bool, .register)}),
-    InstDef.init(.notl, .{}, .{.bool}, .{Output.init(.bool, .register)}),
-    InstDef.init(.andb, .{}, .{ .any, .any }, .{Output.init(.any, .register)}),
-    InstDef.init(.orb, .{}, .{ .any, .any }, .{Output.init(.any, .register)}),
-    InstDef.init(.xorb, .{}, .{ .any, .any }, .{Output.init(.any, .register)}),
-    InstDef.init(.notb, .{}, .{.any}, .{Output.init(.any, .register)}),
-    InstDef.init(.shl, .{}, .{ .any, .unsigned_int }, .{Output.init(.any, .register)}),
-    InstDef.init(.shr, .{}, .{ .any, .unsigned_int }, .{Output.init(.any, .register)}),
-    InstDef.init(.rotl, .{}, .{ .any, .unsigned_int }, .{Output.init(.any, .register)}),
-    InstDef.init(.rotr, .{}, .{ .any, .unsigned_int }, .{Output.init(.any, .register)}),
-    InstDef.init(.jmp, .{.inst_addr}, .{}, .{}),
-    InstDef.init(.jmpz, .{.inst_addr}, .{.any}, .{}),
-    InstDef.init(.jmpnz, .{.inst_addr}, .{.any}, .{}),
-    InstDef.init(.call, .{.inst_addr}, .{}, .{Output.init(.inst_addr, .register)}),
-    InstDef.init(.native, .{}, .{.native_id}, .{}),
-    InstDef.init(.ret, .{}, .{.inst_addr}, .{}),
-    InstDef.init(.itf, .{}, .{.signed_int}, .{Output.init(.float, .register)}),
-    InstDef.init(.utf, .{}, .{.unsigned_int}, .{Output.init(.float, .register)}),
-    InstDef.init(.fti, .{}, .{.float}, .{Output.init(.signed_int, .register)}),
-    InstDef.init(.ftu, .{}, .{.float}, .{Output.init(.unsigned_int, .register)}),
-    InstDef.init(.ldi, .{ .register, .any }, .{}, .{Output.init(.any, .register)}),
-    InstDef.init(.store8, .{.register}, .{.memory_addr}, .{Output.init(.u8, .memory)}),
-    InstDef.init(.load8, .{.register}, .{.memory_addr}, .{Output.init(.u8, .register)}),
-    InstDef.init(.store16, .{.register}, .{.memory_addr}, .{Output.init(.u16, .memory)}),
-    InstDef.init(.load16, .{.register}, .{.memory_addr}, .{Output.init(.u16, .register)}),
-    InstDef.init(.store32, .{.register}, .{.memory_addr}, .{Output.init(.u32, .memory)}),
-    InstDef.init(.load32, .{.register}, .{.memory_addr}, .{Output.init(.u32, .register)}),
-    InstDef.init(.store64, .{.register}, .{.memory_addr}, .{Output.init(.u64, .memory)}),
-    InstDef.init(.load64, .{.register}, .{.memory_addr}, .{Output.init(.u64, .register)}),
-    InstDef.init(.hlt, .{}, .{}, .{}),
-};
+const inst_defs_lut: []InstDef = [_]InstDef{};
 
 pub fn getInstTypeName(inst_type: InstType) []const u8 {
     _ = inst_type;
@@ -291,12 +245,12 @@ pub fn getInstTypeName(inst_type: InstType) []const u8 {
 
 pub const Inst = struct {
     type: InstType,
-    operands: [2]Word = [_]Word{wordFromU64(0)} ** 2,
+    operand0: Word,
 
-    pub fn init(typ: InstType, operands: [2]Word) Inst {
+    pub fn init(typ: InstType, operand0: Word) Inst {
         return Inst{
             .type = typ,
-            .operands = operands,
+            .operand0 = operand0,
         };
     }
 };
@@ -304,6 +258,7 @@ pub const Inst = struct {
 pub const Exception = error{
     illegal_op,
     illegal_op_access,
+    illegal_register_access,
     illegal_operand,
     stack_overflow,
     stack_underflow,
@@ -311,51 +266,308 @@ pub const Exception = error{
     illegal_memory_access,
 };
 
-const MetaData = packed struct {
+const MetaData = struct {
     magic: u32,
     version: u16,
     program_size: u64,
     memory_size: u64,
 
-    fn init(program_size: u64, memory_size: u64) MetaData {
+    fn init(machine: Machine) MetaData {
         return MetaData{
             .magic = MAGIC,
             .version = VERSION,
-            .program_size = program_size,
-            .memory_size = memory_size,
+            .program_size = machine.program_size,
+            .memory_size = machine.memory_size,
         };
     }
 };
 
-pub const Machine = struct {
-    registers: [REGISTER_COUNT]u64 = [_]u64{0} ** REGISTER_COUNT,
+const Native = *const fn (machine: *Machine) Exception!void;
 
-    program: [INSTS_SIZE]Inst = [_]Inst{Inst.init(.nop, .{ 0, 0 })} ** INSTS_SIZE,
+pub const Machine = struct {
+    registers: [REGISTER_COUNT]Register = [_]Register{0} ** REGISTER_COUNT,
+
+    program: [INSTS_SIZE]Inst = [_]Inst{Inst.init(.nop, 0)} ** INSTS_SIZE,
     program_size: usize = 0,
     ip: usize = 0,
 
     memory: [MEMORY_SIZE]u8 = [_]u8{0} ** MEMORY_SIZE,
+    memory_size: usize = 0,
     memory_start: usize,
+    stack_begin: usize,
     stack_top: usize,
+
+    natives: [NATIVE_SIZE]Native = [_]Native{undefined} ** NATIVE_SIZE,
+    native_size: usize = 0,
 
     hlt: bool = false,
 
     pub fn init(stack_size: usize) Machine {
-        return Machine{
+        var machine: Machine = Machine{
             .memory_start = stack_size,
+            .stack_begin = stack_size - 1,
             .stack_top = stack_size - 1,
         };
+
+        machine.natives[0] = nativeWrite;
+        machine.natives[1] = nativeDebugPrint;
+        machine.native_size = 2;
+
+        return machine;
     }
 
     pub fn pushInst(self: *Machine, inst: Inst) void {
+        if (self.program_size >= INSTS_SIZE) {
+            @panic("[ERORR] can't push more instrutions. Instrution count exceded the limit");
+        }
+
         self.program[self.program_size] = inst;
         self.program_size += 1;
+    }
+
+    pub fn pushNative(self: *Machine, native: Native) void {
+        if (self.native_size >= NATIVE_SIZE) {
+            @panic("[ERORR] can't push more natives. Native count exceded the limit");
+        }
+
+        self.natives[self.native_size] = native;
+        self.native_size += 1;
     }
 
     pub fn executeInst(self: *Machine) Exception!void {
         const inst = self.program[self.ip];
 
-        switch (inst.type) {}
+        switch (inst.type) {
+            InstType.nop => {
+                self.ip += 1;
+            },
+            InstType.pushi => {
+                var value = inst.operand0;
+                self.stack_top -= 8;
+                std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], value, .Little);
+                self.ip += 1;
+            },
+            InstType.push => {
+                var register = inst.operand0;
+                std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], register, .Little);
+                self.ip += 1;
+            },
+            InstType.pop => {
+                var register = inst.operand0;
+                self.registers[register] =
+                    std.mem.readInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], .Little);
+                self.stack_top += 8;
+                self.ip += 1;
+            },
+            InstType.pusha => {
+                @panic("Unimplemented");
+            },
+            InstType.popa => {
+                @panic("Unimplemented");
+            },
+            InstType.enter => {
+                @panic("Unimplemented");
+            },
+            InstType.leave => {
+                @panic("Unimplemented");
+            },
+            InstType.dup => {
+                @panic("Unimplemented");
+            },
+            InstType.mov => {
+                @panic("Unimplemented");
+            },
+            InstType.inc => {
+                var register = inst.operand0;
+                self.registers[register] += u64FromWord(1);
+                self.ip += 1;
+            },
+            InstType.incf => {
+                var register = inst.operand0;
+                self.registers[register] = wordFromF64(f64FromWord(self.registers[register]) + 1.0);
+                self.ip += 1;
+            },
+            InstType.dec => {
+                var register = inst.operand0;
+                self.registers[register] -= u64FromWord(1);
+                self.ip += 1;
+            },
+            InstType.decf => {
+                var register = inst.operand0;
+                self.registers[register] = wordFromF64(f64FromWord(self.registers[register]) - 1.0);
+                self.ip += 1;
+            },
+            InstType.neg => {
+                @panic("Unimplemented");
+            },
+            InstType.addi => {
+                @panic("Unimplemented");
+            },
+            InstType.addu => {
+                @panic("Unimplemented");
+            },
+            InstType.addf => {
+                @panic("Unimplemented");
+            },
+            InstType.subi => {
+                @panic("Unimplemented");
+            },
+            InstType.subu => {
+                @panic("Unimplemented");
+            },
+            InstType.subf => {
+                @panic("Unimplemented");
+            },
+            InstType.muli => {
+                @panic("Unimplemented");
+            },
+            InstType.mulu => {
+                @panic("Unimplemented");
+            },
+            InstType.mulf => {
+                @panic("Unimplemented");
+            },
+            InstType.divi => {
+                @panic("Unimplemented");
+            },
+            InstType.divu => {
+                @panic("Unimplemented");
+            },
+            InstType.divf => {
+                @panic("Unimplemented");
+            },
+            InstType.mod => {
+                @panic("Unimplemented");
+            },
+            InstType.modf => {
+                @panic("Unimplemented");
+            },
+            InstType.eq => {
+                @panic("Unimplemented");
+            },
+            InstType.neq => {
+                @panic("Unimplemented");
+            },
+            InstType.gti => {
+                @panic("Unimplemented");
+            },
+            InstType.gtf => {
+                @panic("Unimplemented");
+            },
+            InstType.gei => {
+                @panic("Unimplemented");
+            },
+            InstType.gef => {
+                @panic("Unimplemented");
+            },
+            InstType.sti => {
+                @panic("Unimplemented");
+            },
+            InstType.stf => {
+                @panic("Unimplemented");
+            },
+            InstType.sei => {
+                @panic("Unimplemented");
+            },
+            InstType.sef => {
+                @panic("Unimplemented");
+            },
+            InstType.andl => {
+                @panic("Unimplemented");
+            },
+            InstType.orl => {
+                @panic("Unimplemented");
+            },
+            InstType.notl => {
+                @panic("Unimplemented");
+            },
+            InstType.andb => {
+                @panic("Unimplemented");
+            },
+            InstType.orb => {
+                @panic("Unimplemented");
+            },
+            InstType.xor => {
+                @panic("Unimplemented");
+            },
+            InstType.notb => {
+                @panic("Unimplemented");
+            },
+            InstType.shl => {
+                @panic("Unimplemented");
+            },
+            InstType.shr => {
+                @panic("Unimplemented");
+            },
+            InstType.rotl => {
+                @panic("Unimplemented");
+            },
+            InstType.rotr => {
+                @panic("Unimplemented");
+            },
+            InstType.jmp => {
+                @panic("Unimplemented");
+            },
+            InstType.jz => {
+                @panic("Unimplemented");
+            },
+            InstType.jnz => {
+                @panic("Unimplemented");
+            },
+            InstType.call => {
+                @panic("Unimplemented");
+            },
+            InstType.native => {
+                var native: Word = u64FromWord(self.registers[4]);
+                try self.natives[native](self);
+                self.ip += 1;
+            },
+            InstType.ret => {
+                @panic("Unimplemented");
+            },
+            InstType.itf => {
+                @panic("Unimplemented");
+            },
+            InstType.utf => {
+                @panic("Unimplemented");
+            },
+            InstType.fti => {
+                @panic("Unimplemented");
+            },
+            InstType.ftu => {
+                @panic("Unimplemented");
+            },
+            InstType.ldi => {
+                @panic("Unimplemented");
+            },
+            InstType.store8 => {
+                @panic("Unimplemented");
+            },
+            InstType.load8 => {
+                @panic("Unimplemented");
+            },
+            InstType.store16 => {
+                @panic("Unimplemented");
+            },
+            InstType.load16 => {
+                @panic("Unimplemented");
+            },
+            InstType.store32 => {
+                @panic("Unimplemented");
+            },
+            InstType.load32 => {
+                @panic("Unimplemented");
+            },
+            InstType.store64 => {
+                @panic("Unimplemented");
+            },
+            InstType.load64 => {
+                @panic("Unimplemented");
+            },
+            InstType.hlt => {
+                self.hlt = true;
+            },
+        }
     }
 
     pub fn run(self: *Machine, limit: isize) void {
@@ -363,7 +575,7 @@ pub const Machine = struct {
 
         while (l != 0 and !self.hlt) {
             self.executeInst() catch |err| {
-                @panic(err);
+                @panic(@errorName(err));
             };
 
             l -= 1;
@@ -371,27 +583,51 @@ pub const Machine = struct {
     }
 
     //FIXME: rewrite it
-    pub fn saveToFile(self: Machine, path: []const u8) !void {
-        var file = try std.fs.cwd().createFile(path, .{});
+    //TODO: add better errors
+    pub fn saveToFile(self: Machine, path: []const u8) void {
+        var file = std.fs.cwd().createFile(path, .{}) catch {
+            @panic("[ERORR] error while saving program to binary file");
+        };
         defer file.close();
 
         var buf_writer = std.io.bufferedWriter(file.writer());
         var out_stream = buf_writer.writer();
+        defer buf_writer.flush() catch {
+            @panic("[ERORR] error while saving program to binary file");
+        };
 
-        const meta_data = MetaData.init(self.program_size, 0);
+        const meta_data = MetaData.init(self);
 
-        _ = try out_stream.writeInt(u32, meta_data.magic, .Little);
-        _ = try out_stream.writeInt(u16, meta_data.version, .Little);
-        _ = try out_stream.writeInt(u64, meta_data.program_size, .Little);
-        _ = try out_stream.writeInt(u64, meta_data.memory_size, .Little);
+        out_stream.writeIntLittle(u32, meta_data.magic) catch {
+            @panic("[ERORR] error while saving program to binary file");
+        };
 
-        _ = try out_stream.writeAll(@as([*]const u8, @ptrCast(&self.program))[0 .. self.program_size * @sizeOf(Inst)]);
+        out_stream.writeIntLittle(u16, meta_data.version) catch {
+            @panic("[ERORR] error while saving program to binary file");
+        };
 
-        try buf_writer.flush();
+        out_stream.writeIntLittle(u64, meta_data.program_size) catch {
+            @panic("[ERORR] error while saving program to binary file");
+        };
+
+        out_stream.writeIntLittle(u64, meta_data.memory_size) catch {
+            @panic("[ERORR] error while saving program to binary file");
+        };
+
+        for (self.program[0..self.program_size]) |inst| {
+            out_stream.writeIntLittle(u8, @intFromEnum(inst.type)) catch {
+                @panic("[ERORR] error while saving program to binary file");
+            };
+
+            out_stream.writeIntLittle(Word, inst.operand0) catch {
+                @panic("[ERORR] error while saving program to binary file");
+            };
+        }
     }
 
     //FIXME: rewrite it
     //TODO: add error checking for file loading
+    //TODO: add better errors
     pub fn loadFromFile(self: *Machine, path: []const u8) !void {
         var file = try std.fs.cwd().openFile(path, .{});
         defer file.close();
@@ -401,13 +637,41 @@ pub const Machine = struct {
 
         var meta_data: MetaData = undefined;
 
-        meta_data.magic = try in_stream.readInt(u32, .Little);
-        meta_data.version = try in_stream.readInt(u16, .Little);
-        meta_data.program_size = try in_stream.readInt(u64, .Little);
-        meta_data.memory_size = try in_stream.readInt(u64, .Little);
+        meta_data.magic = in_stream.readIntLittle(u32) catch {
+            @panic("[ERORR] error while loading program from binary file");
+        };
+
+        meta_data.version = in_stream.readIntLittle(u16) catch {
+            @panic("[ERORR] error while loading program from binary file");
+        };
+
+        meta_data.program_size = in_stream.readIntLittle(u64) catch {
+            @panic("[ERORR] error while loading program from binary file");
+        };
+
+        meta_data.memory_size = in_stream.readIntLittle(u64) catch {
+            @panic("[ERORR] error while loading program from binary file");
+        };
 
         self.program_size = meta_data.program_size;
 
-        _ = try in_stream.readAll(@as([*]u8, @ptrCast(&self.program))[0 .. self.program_size * @sizeOf(Inst)]);
+        for (0..self.program_size) |i| {
+            self.program[i].type = @enumFromInt(in_stream.readIntLittle(u8) catch {
+                @panic("[ERORR] error while loading program from binary file");
+            });
+
+            self.program[i].operand0 = in_stream.readIntLittle(Word) catch {
+                @panic("[ERORR] error while loading program from binary file");
+            };
+        }
+    }
+
+    fn nativeWrite(machine: *Machine) Exception!void {
+        _ = machine;
+        // std.debug.print("", .{});
+    }
+
+    fn nativeDebugPrint(machine: *Machine) Exception!void {
+        std.debug.print("{}\n", .{machine.registers[0]});
     }
 };
