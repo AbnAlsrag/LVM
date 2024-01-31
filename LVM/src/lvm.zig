@@ -72,18 +72,6 @@ const Type = enum(u8) {
     int,
     signed_int,
     unsigned_int,
-    i8,
-    i16,
-    i32,
-    i64,
-    u8,
-    u16,
-    u32,
-    u64,
-    s8,
-    s16,
-    s32,
-    s64,
     register,
     memory_addr,
     inst_addr,
@@ -184,91 +172,103 @@ const Output = struct {
     }
 };
 
-const InstDef = struct {
+pub const InstDef = struct {
     type: InstType,
     name: []const u8,
+    has_operands: bool,
+    operands: [2]Type,
 
     //TODO: Improve errors
-    fn init(comptime typ: InstType) InstDef {
+    fn init(comptime typ: InstType, operands: []Type) InstDef {
         var def: InstDef = undefined;
         def.type = typ;
         def.name = @tagName(typ);
+
+        if (operands.len == 0) {
+            def.has_operands = false;
+            def.operands = operands;
+        } else if (operands.len <= 2) {
+            def.has_operands = true;
+            def.operands = operands;
+        } else {
+            @panic("[ERROR] instructions can't have more than two operands");
+        }
 
         return def;
     }
 };
 
 const inst_defs_lut: [@intFromEnum(InstType.inst_max)]InstDef = [_]InstDef{
-    InstDef.init(.nop),
-    InstDef.init(.pushi),
-    InstDef.init(.push),
-    InstDef.init(.pop),
-    InstDef.init(.pusha),
-    InstDef.init(.popa),
-    InstDef.init(.enter),
-    InstDef.init(.leave),
-    InstDef.init(.dup),
-    InstDef.init(.mov),
-    InstDef.init(.inc),
-    InstDef.init(.incf),
-    InstDef.init(.dec),
-    InstDef.init(.decf),
-    InstDef.init(.neg),
-    InstDef.init(.addi),
-    InstDef.init(.addu),
-    InstDef.init(.addf),
-    InstDef.init(.subi),
-    InstDef.init(.subu),
-    InstDef.init(.subf),
-    InstDef.init(.muli),
-    InstDef.init(.mulu),
-    InstDef.init(.mulf),
-    InstDef.init(.divi),
-    InstDef.init(.divu),
-    InstDef.init(.divf),
-    InstDef.init(.mod),
-    InstDef.init(.modf),
-    InstDef.init(.eq),
-    InstDef.init(.neq),
-    InstDef.init(.gti),
-    InstDef.init(.gtf),
-    InstDef.init(.gei),
-    InstDef.init(.gef),
-    InstDef.init(.sti),
-    InstDef.init(.stf),
-    InstDef.init(.sei),
-    InstDef.init(.sef),
-    InstDef.init(.andl),
-    InstDef.init(.orl),
-    InstDef.init(.notl),
-    InstDef.init(.andb),
-    InstDef.init(.orb),
-    InstDef.init(.xor),
-    InstDef.init(.notb),
-    InstDef.init(.shl),
-    InstDef.init(.shr),
-    InstDef.init(.rotl),
-    InstDef.init(.rotr),
-    InstDef.init(.jmp),
-    InstDef.init(.jz),
-    InstDef.init(.jnz),
-    InstDef.init(.call),
-    InstDef.init(.native),
-    InstDef.init(.ret),
-    InstDef.init(.itf),
-    InstDef.init(.utf),
-    InstDef.init(.fti),
-    InstDef.init(.ftu),
-    InstDef.init(.ldi),
-    InstDef.init(.store8),
-    InstDef.init(.load8),
-    InstDef.init(.store16),
-    InstDef.init(.load16),
-    InstDef.init(.store32),
-    InstDef.init(.load32),
-    InstDef.init(.store64),
-    InstDef.init(.load64),
-    InstDef.init(.hlt),
+    InstDef.init(.nop, .{}),
+    InstDef.init(.pushi, .{}),
+    InstDef.init(.push, .{}),
+    InstDef.init(.pop, .{}),
+    InstDef.init(.pusha, .{}),
+    InstDef.init(.popa, .{}),
+    InstDef.init(.enter, .{}),
+    InstDef.init(.leave, .{}),
+    InstDef.init(.dup, .{}),
+    InstDef.init(.mov, .{}),
+    InstDef.init(.inc, .{}),
+    InstDef.init(.incf, .{}),
+    InstDef.init(.dec, .{}),
+    InstDef.init(.decf, .{}),
+    InstDef.init(.neg, .{}),
+    InstDef.init(.addi, .{}),
+    InstDef.init(.addu, .{}),
+    InstDef.init(.addf, .{}),
+    InstDef.init(.subi, .{}),
+    InstDef.init(.subu, .{}),
+    InstDef.init(.subf, .{}),
+    InstDef.init(.muli, .{}),
+    InstDef.init(.mulu, .{}),
+    InstDef.init(.mulf, .{}),
+    InstDef.init(.divi, .{}),
+    InstDef.init(.divu, .{}),
+    InstDef.init(.divf, .{}),
+    InstDef.init(.mod, .{}),
+    InstDef.init(.modf, .{}),
+    InstDef.init(.eq, .{}),
+    InstDef.init(.neq, .{}),
+    InstDef.init(.gti, .{}),
+    InstDef.init(.gtf, .{}),
+    InstDef.init(.gei, .{}),
+    InstDef.init(.gef, .{}),
+    InstDef.init(.sti, .{}),
+    InstDef.init(.stf, .{}),
+    InstDef.init(.sei, .{}),
+    InstDef.init(.sef, .{}),
+    InstDef.init(.andl, .{}),
+    InstDef.init(.orl, .{}),
+    InstDef.init(.notl, .{}),
+    InstDef.init(.andb, .{}),
+    InstDef.init(.orb, .{}),
+    InstDef.init(.xor, .{}),
+    InstDef.init(.notb, .{}),
+    InstDef.init(.shl, .{}),
+    InstDef.init(.shr, .{}),
+    InstDef.init(.rotl, .{}),
+    InstDef.init(.rotr, .{}),
+    InstDef.init(.jmp, .{.inst_addr}),
+    InstDef.init(.jz, .{}),
+    InstDef.init(.jnz, .{}),
+    InstDef.init(.call, .{}),
+    InstDef.init(.native, .{}),
+    InstDef.init(.ret, .{}),
+    InstDef.init(.itf, .{}),
+    InstDef.init(.utf, .{}),
+    InstDef.init(.fti, .{}),
+    InstDef.init(.ftu, .{}),
+    InstDef.init(.ldi, .{}),
+    InstDef.init(.store8, .{}),
+    InstDef.init(.load8, .{}),
+    InstDef.init(.store16, .{}),
+    InstDef.init(.load16, .{}),
+    InstDef.init(.store32, .{}),
+    InstDef.init(.load32, .{}),
+    InstDef.init(.store64, .{}),
+    InstDef.init(.load64, .{}),
+    InstDef.init(.hlt, .{}),
 };
 
 pub fn getInstTypeName(inst_type: InstType) []const u8 {
@@ -284,6 +284,10 @@ pub fn isInst(name: []const u8) ?InstType {
     }
 
     return null;
+}
+
+pub fn getInstDef(inst_type: InstType) InstDef {
+    return inst_defs_lut[@intFromEnum(inst_type)];
 }
 
 pub const Inst = struct {
@@ -553,7 +557,7 @@ pub const Machine = struct {
                 @panic("Unimplemented");
             },
             InstType.jmp => {
-                @panic("Unimplemented");
+                self.ip = inst.operand0;
             },
             InstType.jz => {
                 @panic("Unimplemented");
@@ -678,8 +682,10 @@ pub const Machine = struct {
     //FIXME: rewrite it
     //TODO: add error checking for file loading
     //TODO: add better errors
-    pub fn loadFromFile(self: *Machine, path: []const u8) !void {
-        var file = try std.fs.cwd().openFile(path, .{});
+    pub fn loadFromFile(self: *Machine, path: []const u8) void {
+        var file = std.fs.cwd().openFile(path, .{}) catch {
+            @panic("[ERORR] error while loading program from binary file");
+        };
         defer file.close();
 
         var buf_reader = std.io.bufferedReader(file.reader());
