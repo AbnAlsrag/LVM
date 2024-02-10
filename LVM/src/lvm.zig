@@ -287,6 +287,7 @@ pub const Opcode = enum(u8) {
     add,
     sub,
     hlt,
+    jmp,
     print_debug,
     max_insts,
 };
@@ -367,13 +368,13 @@ pub const Module = struct {
         @panic("[ERROR] UNIMPLEMENTED");
     }
 
-    fn findSymbol(self: *Module, symbol: []const u8) ResolveSymbolError!usize {
+    fn findSymbol(self: *Module, symbol: []const u8) resolveSymbols!usize {
         _ = self;
         _ = symbol;
         @panic("[ERROR] UNIMPLEMENTED");
     }
 
-    fn computeSymbols(self: *Module) void {
+    fn resolveSymbols(self: *Module) resolveSymbols!void {
         _ = self;
         @panic("[ERROR] UNIMPLEMENTED");
     }

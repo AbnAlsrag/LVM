@@ -12,14 +12,16 @@ pub fn main() !void {
     var module1: Module = Module.init(allocator);
     defer module1.deinit();
 
+    module1.pushSymbol(.{ .name = "main" });
+    module1.pushInst(.{ .opcode = .push, .operand = .{ .word = 0xA } });
     module1.pushInst(.{ .opcode = .push, .operand = .{ .word = 0xA } });
     module1.pushInst(.{ .opcode = .push, .operand = .{ .word = 0xA } });
     module1.pushInst(.{ .opcode = .add, .operand = .{ .word = 0x0 } });
     module1.pushInst(.{ .opcode = .print_debug, .operand = .{ .word = 0x0 } });
+    module1.pushInst(.{ .opcode = .jmp, .operand = .{ .symbol = "main" } });
     module1.pushInst(.{ .opcode = .hlt, .operand = .{ .word = 0x0 } });
 
-    module1.linked = true;
-    // module1.computeSymbols();
+    module1.resolveSymbols();
 
     var module2: Module = Module.init(allocator);
     defer module2.deinit();
