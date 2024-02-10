@@ -1,0 +1,2 @@
+zig build run
+pause
