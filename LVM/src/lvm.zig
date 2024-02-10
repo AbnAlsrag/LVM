@@ -23,22 +23,21 @@
 //     misrepresented as being the original software.
 // 3. This notice may not be removed or altered from any source distribution.
 
+// TODO: REMOVE ALL THE CHATCH UNREACHABLE AND ADD BETTER ERROR HANDLING
+
 const std = @import("std");
 const mem = std.mem;
 
 const MAGIC = 0x45564F4C;
 const VERSION = 0;
 
-const INSTS_SIZE = 1024;
-const MEMORY_SIZE = 1024;
-const NATIVE_SIZE = 1024;
-const REGISTER_COUNT = 5;
+// TODO: MAKE STACK VARIABLE LENGTH
+const STACK_MAX = 1024;
 
 const REGISTER_SIZE = 8;
 
-pub const Register = u64;
-
 pub const Word = u64;
+pub const Register = Word;
 
 pub fn wordFromI64(data: i64) Word {
     return @bitCast(data);
@@ -64,670 +63,487 @@ pub fn f64FromWord(word: Word) f64 {
     return @bitCast(word);
 }
 
-// LVM_OP_SWAP,
-
-const Type = enum(u8) {
-    any,
-    float,
-    int,
-    signed_int,
-    unsigned_int,
-    register,
-    memory_addr,
-    inst_addr,
-    native_id,
-    bool,
-};
-
-pub const InstType = enum(u8) {
-    nop,
-    pushi,
-    push,
-    pop,
-    pusha,
-    popa,
-    enter,
-    leave,
-    dup,
-    mov,
-    inc,
-    incf,
-    dec,
-    decf,
-    neg,
-    addi,
-    addu,
-    addf,
-    subi,
-    subu,
-    subf,
-    muli,
-    mulu,
-    mulf,
-    divi,
-    divu,
-    divf,
-    mod,
-    modf,
-    eq,
-    neq,
-    gti,
-    gtf,
-    gei,
-    gef,
-    sti,
-    stf,
-    sei,
-    sef,
-    andl,
-    orl,
-    notl,
-    andb,
-    orb,
-    xor,
-    notb,
-    shl,
-    shr,
-    rotl,
-    rotr,
-    jmp,
-    jz,
-    jnz,
-    call,
-    native,
-    ret,
-    itf,
-    utf,
-    fti,
-    ftu,
-    ldi,
-    store8,
-    load8,
-    store16,
-    load16,
-    store32,
-    load32,
-    store64,
-    load64,
-    hlt,
-    inst_max,
-};
-
-//TODO: add inst def
-const OutputLoc = enum(u8) {
-    any,
-    register,
-    stack,
-    memory,
-};
-
-const Output = struct {
-    type: Type,
-    loc: OutputLoc,
-
-    //TODO: Improve errors
-    fn init(comptime typ: Type, comptime loc: OutputLoc) Output {
-        var output: Output = Output{ .type = typ, .loc = loc };
-        return output;
-    }
-};
-
-pub const InstDef = struct {
-    type: InstType,
-    name: []const u8,
-    has_operands: bool,
-    operands: [2]Type,
-
-    //TODO: Improve errors
-    fn init(comptime typ: InstType, operands: []Type) InstDef {
-        var def: InstDef = undefined;
-        def.type = typ;
-        def.name = @tagName(typ);
-
-        if (operands.len == 0) {
-            def.has_operands = false;
-            def.operands = operands;
-        } else if (operands.len <= 2) {
-            def.has_operands = true;
-            def.operands = operands;
-        } else {
-            @panic("[ERROR] instructions can't have more than two operands");
-        }
-
-        return def;
-    }
-};
-
-const inst_defs_lut: [@intFromEnum(InstType.inst_max)]InstDef = [_]InstDef{
-    InstDef.init(.nop, .{}),
-    InstDef.init(.pushi, .{}),
-    InstDef.init(.push, .{}),
-    InstDef.init(.pop, .{}),
-    InstDef.init(.pusha, .{}),
-    InstDef.init(.popa, .{}),
-    InstDef.init(.enter, .{}),
-    InstDef.init(.leave, .{}),
-    InstDef.init(.dup, .{}),
-    InstDef.init(.mov, .{}),
-    InstDef.init(.inc, .{}),
-    InstDef.init(.incf, .{}),
-    InstDef.init(.dec, .{}),
-    InstDef.init(.decf, .{}),
-    InstDef.init(.neg, .{}),
-    InstDef.init(.addi, .{}),
-    InstDef.init(.addu, .{}),
-    InstDef.init(.addf, .{}),
-    InstDef.init(.subi, .{}),
-    InstDef.init(.subu, .{}),
-    InstDef.init(.subf, .{}),
-    InstDef.init(.muli, .{}),
-    InstDef.init(.mulu, .{}),
-    InstDef.init(.mulf, .{}),
-    InstDef.init(.divi, .{}),
-    InstDef.init(.divu, .{}),
-    InstDef.init(.divf, .{}),
-    InstDef.init(.mod, .{}),
-    InstDef.init(.modf, .{}),
-    InstDef.init(.eq, .{}),
-    InstDef.init(.neq, .{}),
-    InstDef.init(.gti, .{}),
-    InstDef.init(.gtf, .{}),
-    InstDef.init(.gei, .{}),
-    InstDef.init(.gef, .{}),
-    InstDef.init(.sti, .{}),
-    InstDef.init(.stf, .{}),
-    InstDef.init(.sei, .{}),
-    InstDef.init(.sef, .{}),
-    InstDef.init(.andl, .{}),
-    InstDef.init(.orl, .{}),
-    InstDef.init(.notl, .{}),
-    InstDef.init(.andb, .{}),
-    InstDef.init(.orb, .{}),
-    InstDef.init(.xor, .{}),
-    InstDef.init(.notb, .{}),
-    InstDef.init(.shl, .{}),
-    InstDef.init(.shr, .{}),
-    InstDef.init(.rotl, .{}),
-    InstDef.init(.rotr, .{}),
-    InstDef.init(.jmp, .{.inst_addr}),
-    InstDef.init(.jz, .{}),
-    InstDef.init(.jnz, .{}),
-    InstDef.init(.call, .{}),
-    InstDef.init(.native, .{}),
-    InstDef.init(.ret, .{}),
-    InstDef.init(.itf, .{}),
-    InstDef.init(.utf, .{}),
-    InstDef.init(.fti, .{}),
-    InstDef.init(.ftu, .{}),
-    InstDef.init(.ldi, .{}),
-    InstDef.init(.store8, .{}),
-    InstDef.init(.load8, .{}),
-    InstDef.init(.store16, .{}),
-    InstDef.init(.load16, .{}),
-    InstDef.init(.store32, .{}),
-    InstDef.init(.load32, .{}),
-    InstDef.init(.store64, .{}),
-    InstDef.init(.load64, .{}),
-    InstDef.init(.hlt, .{}),
-};
-
-pub fn getInstTypeName(inst_type: InstType) []const u8 {
-    _ = inst_type;
-    return inst_defs_lut[@intFromEnum(InstType)].name;
+pub fn printWord(word: Word) void {
+    std.debug.print("WORD[i64: {}, u64: {}, f64: {}, ptr: 0x{x}]\n", .{ i64FromWord(word), word, f64FromWord(word), word });
 }
-
-pub fn isInst(name: []const u8) ?InstType {
-    for (inst_defs_lut) |inst_def| {
-        if (std.mem.eql(u8, name, inst_def.name)) {
-            return inst_def.type;
-        }
-    }
-
-    return null;
-}
-
-pub fn getInstDef(inst_type: InstType) InstDef {
-    return inst_defs_lut[@intFromEnum(inst_type)];
-}
-
-pub const Inst = struct {
-    type: InstType,
-    operand0: Word,
-
-    pub fn init(typ: InstType, operand0: Word) Inst {
-        return Inst{
-            .type = typ,
-            .operand0 = operand0,
-        };
-    }
-};
-
-pub const Exception = error{
-    illegal_op,
-    illegal_op_access,
-    illegal_register_access,
-    illegal_operand,
-    stack_overflow,
-    stack_underflow,
-    div_by_zero,
-    illegal_memory_access,
-};
-
-const MetaData = struct {
-    magic: u32,
-    version: u16,
-    program_size: u64,
-    memory_size: u64,
-
-    fn init(machine: Machine) MetaData {
-        return MetaData{
-            .magic = MAGIC,
-            .version = VERSION,
-            .program_size = machine.program_size,
-            .memory_size = machine.memory_size,
-        };
-    }
-};
-
-const Native = *const fn (machine: *Machine) Exception!void;
 
 pub const Machine = struct {
-    registers: [REGISTER_COUNT]Register = [_]Register{0} ** REGISTER_COUNT,
+    pub const Config = struct {
+        allocator: std.mem.Allocator,
+        program: ?Program = null,
+    };
 
-    program: [INSTS_SIZE]Inst = [_]Inst{Inst.init(.nop, 0)} ** INSTS_SIZE,
-    program_size: usize = 0,
-    ip: usize = 0,
+    config: Config,
 
-    memory: [MEMORY_SIZE]u8 = [_]u8{0} ** MEMORY_SIZE,
-    memory_size: usize = 0,
-    memory_start: usize,
-    stack_begin: usize,
-    stack_top: usize,
-
-    natives: [NATIVE_SIZE]Native = [_]Native{undefined} ** NATIVE_SIZE,
-    native_size: usize = 0,
+    program: Program,
+    stack: [STACK_MAX]Word = [_]Word{0} ** STACK_MAX,
+    sp: usize = 0,
 
     hlt: bool = false,
 
-    pub fn init(stack_size: usize) Machine {
+    pub fn init(config: Config) Machine {
         var machine: Machine = Machine{
-            .memory_start = stack_size,
-            .stack_begin = stack_size - 1,
-            .stack_top = stack_size - 1,
+            .config = config,
+            .program = undefined,
         };
 
-        machine.natives[0] = nativeWrite;
-        machine.natives[1] = nativeDebugPrint;
-        machine.native_size = 2;
+        if (config.program) |prog| {
+            machine.program = prog;
+        } else {
+            machine.program = Program.init(config.allocator);
+        }
 
         return machine;
     }
 
-    pub fn pushInst(self: *Machine, inst: Inst) void {
-        if (self.program_size >= INSTS_SIZE) {
-            @panic("[ERORR] can't push more instrutions. Instrution count exceded the limit");
-        }
-
-        self.program[self.program_size] = inst;
-        self.program_size += 1;
-    }
-
-    pub fn pushNative(self: *Machine, native: Native) void {
-        if (self.native_size >= NATIVE_SIZE) {
-            @panic("[ERORR] can't push more natives. Native count exceded the limit");
-        }
-
-        self.natives[self.native_size] = native;
-        self.native_size += 1;
-    }
-
-    pub fn executeInst(self: *Machine) Exception!void {
-        const inst = self.program[self.ip];
-
-        switch (inst.type) {
-            InstType.nop => {
-                self.ip += 1;
-            },
-            InstType.pushi => {
-                var value = inst.operand0;
-                self.stack_top -= 8;
-                std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], value, .Little);
-                self.ip += 1;
-            },
-            InstType.push => {
-                var register = inst.operand0;
-                self.stack_top -= 8;
-                std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], register, .Little);
-                self.ip += 1;
-            },
-            InstType.pop => {
-                var register = inst.operand0;
-                self.registers[register] =
-                    std.mem.readInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], .Little);
-                self.stack_top += 8;
-                self.ip += 1;
-            },
-            InstType.pusha => {
-                @panic("Unimplemented");
-            },
-            InstType.popa => {
-                @panic("Unimplemented");
-            },
-            InstType.enter => {
-                @panic("Unimplemented");
-            },
-            InstType.leave => {
-                @panic("Unimplemented");
-            },
-            InstType.dup => {
-                var value = std.mem.readInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], .Little);
-                self.stack_top -= 8;
-                std.mem.writeInt(Word, self.memory[self.stack_top..][0..@sizeOf(Word)], value, .Little);
-                self.ip += 1;
-            },
-            InstType.mov => {
-                @panic("Unimplemented");
-            },
-            InstType.inc => {
-                var register = inst.operand0;
-                self.registers[register] += u64FromWord(1);
-                self.ip += 1;
-            },
-            InstType.incf => {
-                var register = inst.operand0;
-                self.registers[register] = wordFromF64(f64FromWord(self.registers[register]) + 1.0);
-                self.ip += 1;
-            },
-            InstType.dec => {
-                var register = inst.operand0;
-                self.registers[register] -= u64FromWord(1);
-                self.ip += 1;
-            },
-            InstType.decf => {
-                var register = inst.operand0;
-                self.registers[register] = wordFromF64(f64FromWord(self.registers[register]) - 1.0);
-                self.ip += 1;
-            },
-            InstType.neg => {
-                @panic("Unimplemented");
-            },
-            InstType.addi => {
-                @panic("Unimplemented");
-            },
-            InstType.addu => {
-                @panic("Unimplemented");
-            },
-            InstType.addf => {
-                @panic("Unimplemented");
-            },
-            InstType.subi => {
-                @panic("Unimplemented");
-            },
-            InstType.subu => {
-                @panic("Unimplemented");
-            },
-            InstType.subf => {
-                @panic("Unimplemented");
-            },
-            InstType.muli => {
-                @panic("Unimplemented");
-            },
-            InstType.mulu => {
-                @panic("Unimplemented");
-            },
-            InstType.mulf => {
-                @panic("Unimplemented");
-            },
-            InstType.divi => {
-                @panic("Unimplemented");
-            },
-            InstType.divu => {
-                @panic("Unimplemented");
-            },
-            InstType.divf => {
-                @panic("Unimplemented");
-            },
-            InstType.mod => {
-                @panic("Unimplemented");
-            },
-            InstType.modf => {
-                @panic("Unimplemented");
-            },
-            InstType.eq => {
-                @panic("Unimplemented");
-            },
-            InstType.neq => {
-                @panic("Unimplemented");
-            },
-            InstType.gti => {
-                @panic("Unimplemented");
-            },
-            InstType.gtf => {
-                @panic("Unimplemented");
-            },
-            InstType.gei => {
-                @panic("Unimplemented");
-            },
-            InstType.gef => {
-                @panic("Unimplemented");
-            },
-            InstType.sti => {
-                @panic("Unimplemented");
-            },
-            InstType.stf => {
-                @panic("Unimplemented");
-            },
-            InstType.sei => {
-                @panic("Unimplemented");
-            },
-            InstType.sef => {
-                @panic("Unimplemented");
-            },
-            InstType.andl => {
-                @panic("Unimplemented");
-            },
-            InstType.orl => {
-                @panic("Unimplemented");
-            },
-            InstType.notl => {
-                @panic("Unimplemented");
-            },
-            InstType.andb => {
-                @panic("Unimplemented");
-            },
-            InstType.orb => {
-                @panic("Unimplemented");
-            },
-            InstType.xor => {
-                @panic("Unimplemented");
-            },
-            InstType.notb => {
-                @panic("Unimplemented");
-            },
-            InstType.shl => {
-                @panic("Unimplemented");
-            },
-            InstType.shr => {
-                @panic("Unimplemented");
-            },
-            InstType.rotl => {
-                @panic("Unimplemented");
-            },
-            InstType.rotr => {
-                @panic("Unimplemented");
-            },
-            InstType.jmp => {
-                self.ip = inst.operand0;
-            },
-            InstType.jz => {
-                @panic("Unimplemented");
-            },
-            InstType.jnz => {
-                @panic("Unimplemented");
-            },
-            InstType.call => {
-                @panic("Unimplemented");
-            },
-            InstType.native => {
-                var native: Word = u64FromWord(self.registers[4]);
-                try self.natives[native](self);
-                self.ip += 1;
-            },
-            InstType.ret => {
-                @panic("Unimplemented");
-            },
-            InstType.itf => {
-                @panic("Unimplemented");
-            },
-            InstType.utf => {
-                @panic("Unimplemented");
-            },
-            InstType.fti => {
-                @panic("Unimplemented");
-            },
-            InstType.ftu => {
-                @panic("Unimplemented");
-            },
-            InstType.ldi => {
-                @panic("Unimplemented");
-            },
-            InstType.store8 => {
-                @panic("Unimplemented");
-            },
-            InstType.load8 => {
-                @panic("Unimplemented");
-            },
-            InstType.store16 => {
-                @panic("Unimplemented");
-            },
-            InstType.load16 => {
-                @panic("Unimplemented");
-            },
-            InstType.store32 => {
-                @panic("Unimplemented");
-            },
-            InstType.load32 => {
-                @panic("Unimplemented");
-            },
-            InstType.store64 => {
-                @panic("Unimplemented");
-            },
-            InstType.load64 => {
-                @panic("Unimplemented");
-            },
-            InstType.hlt => {
-                self.hlt = true;
-            },
-            InstType.inst_max => {
-                @panic("Unkown instruction");
-            },
+    pub fn deinit(self: *Machine) void {
+        if (self.config.program == null) {
+            self.program.deinit();
         }
     }
 
-    pub fn run(self: *Machine, limit: isize) void {
-        var l = limit;
+    pub fn run(self: *Machine, max_insts: isize) void {
+        var i: isize = max_insts;
 
-        while (l != 0 and !self.hlt) {
-            self.executeInst() catch |err| {
-                @panic(@errorName(err));
+        while (!self.hlt and i != 0 and self.program.inst_count > 0) {
+            self.program.executeInst(self) catch |err| {
+                std.debug.print("[ERROR] {s} caused by instruction {}\n", .{ @errorName(err), self.program.pc });
+                @panic("");
             };
 
-            l -= 1;
+            i -= 1;
+        }
+    }
+};
+
+pub const Compiler = struct {
+    pub const Target = struct {
+        ptr: *anyopaque,
+        compileFn: *const fn (ptr: *anyopaque, program: Program) Output,
+
+        fn compile(self: Target, program: Program) Output {
+            return self.compileFn(self.ptr, program);
+        }
+    };
+
+    pub const x86_64_nasm_linux_target = struct {
+        fn compileFn(ptr: *anyopaque, program: Program) Output {
+            _ = ptr;
+            var output: Output = Output{
+                .allocator = program.allocator,
+                .code = undefined,
+            };
+
+            var buf: std.ArrayList(u8) = std.ArrayList(u8).init(output.allocator);
+            defer buf.deinit();
+
+            buf.writer().print("%define EXIT_OK 0\n", .{}) catch unreachable;
+
+            buf.writer().print("%define SYS_EXIT 60\n", .{}) catch unreachable;
+            buf.writer().print("%define SYS_WRITE 1\n", .{}) catch unreachable;
+
+            buf.writer().print("segment .text\n", .{}) catch unreachable;
+            buf.writer().print("global _start\n", .{}) catch unreachable;
+
+            buf.writer().print("print_debug:\n", .{}) catch unreachable;
+            buf.writer().print("push    rbp\n", .{}) catch unreachable;
+            buf.writer().print("mov     rbp, rsp\n", .{}) catch unreachable;
+            buf.writer().print("sub     rsp, 64\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-56], rdi\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-48], 0\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-40], 0\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-32], 0\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-24], 0\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-8], 1\n", .{}) catch unreachable;
+            buf.writer().print("mov     eax, 32\n", .{}) catch unreachable;
+            buf.writer().print("sub     rax, QWORD [rbp-8]\n", .{}) catch unreachable;
+            buf.writer().print("mov     BYTE [rbp-48+rax], 10\n", .{}) catch unreachable;
+            buf.writer().print(".L2:\n", .{}) catch unreachable;
+            buf.writer().print("mov     rcx, QWORD [rbp-56]\n", .{}) catch unreachable;
+            buf.writer().print("mov  rdx, -3689348814741910323\n", .{}) catch unreachable;
+            buf.writer().print("mov     rax, rcx\n", .{}) catch unreachable;
+            buf.writer().print("mul     rdx\n", .{}) catch unreachable;
+            buf.writer().print("shr     rdx, 3\n", .{}) catch unreachable;
+            buf.writer().print("mov     rax, rdx\n", .{}) catch unreachable;
+            buf.writer().print("sal     rax, 2\n", .{}) catch unreachable;
+            buf.writer().print("add     rax, rdx\n", .{}) catch unreachable;
+            buf.writer().print("add     rax, rax\n", .{}) catch unreachable;
+            buf.writer().print("sub     rcx, rax\n", .{}) catch unreachable;
+            buf.writer().print("mov     rdx, rcx\n", .{}) catch unreachable;
+            buf.writer().print("mov     eax, edx\n", .{}) catch unreachable;
+            buf.writer().print("lea     edx, [rax+48]\n", .{}) catch unreachable;
+            buf.writer().print("mov     eax, 31\n", .{}) catch unreachable;
+            buf.writer().print("sub     rax, QWORD [rbp-8]\n", .{}) catch unreachable;
+            buf.writer().print("mov     BYTE [rbp-48+rax], dl\n", .{}) catch unreachable;
+            buf.writer().print("add     QWORD [rbp-8], 1\n", .{}) catch unreachable;
+            buf.writer().print("mov     rax, QWORD [rbp-56]\n", .{}) catch unreachable;
+            buf.writer().print("mov  rdx, -3689348814741910323\n", .{}) catch unreachable;
+            buf.writer().print("mul     rdx\n", .{}) catch unreachable;
+            buf.writer().print("mov     rax, rdx\n", .{}) catch unreachable;
+            buf.writer().print("shr     rax, 3\n", .{}) catch unreachable;
+            buf.writer().print("mov     QWORD [rbp-56], rax\n", .{}) catch unreachable;
+            buf.writer().print("cmp     QWORD [rbp-56], 0\n", .{}) catch unreachable;
+            buf.writer().print("jne     .L2\n", .{}) catch unreachable;
+            buf.writer().print("mov     eax, 32\n", .{}) catch unreachable;
+            buf.writer().print("sub     rax, QWORD [rbp-8]\n", .{}) catch unreachable;
+            buf.writer().print("lea     rdx, [rbp-48]\n", .{}) catch unreachable;
+            buf.writer().print("lea     rcx, [rdx+rax]\n", .{}) catch unreachable;
+            buf.writer().print("mov     rax, QWORD [rbp-8]\n", .{}) catch unreachable;
+            buf.writer().print("mov     rdx, rax\n", .{}) catch unreachable;
+            buf.writer().print("mov     rsi, rcx\n", .{}) catch unreachable;
+            buf.writer().print("mov     edi, 1\n", .{}) catch unreachable;
+            buf.writer().print("mov     rax, SYS_WRITE\n", .{}) catch unreachable;
+            buf.writer().print("syscall\n", .{}) catch unreachable;
+            buf.writer().print("nop\n", .{}) catch unreachable;
+            buf.writer().print("leave\n", .{}) catch unreachable;
+            buf.writer().print("ret\n", .{}) catch unreachable;
+
+            buf.writer().print("_start:\n", .{}) catch unreachable;
+
+            for (program.insts.items) |inst| {
+                switch (inst.opcode) {
+                    .push => {
+                        buf.writer().print("push {}\n", .{inst.operand}) catch unreachable;
+                    },
+                    .pop => {
+                        buf.writer().print("pop\n", .{}) catch unreachable;
+                    },
+                    .add => {
+                        buf.writer().print("pop rcx\n", .{}) catch unreachable;
+                        buf.writer().print("pop rdx\n", .{}) catch unreachable;
+                        buf.writer().print("add rcx, rdx\n", .{}) catch unreachable;
+                        buf.writer().print("push rcx\n", .{}) catch unreachable;
+                    },
+                    .sub => {
+                        buf.writer().print("pop rcx\n", .{}) catch unreachable;
+                        buf.writer().print("pop rdx\n", .{}) catch unreachable;
+                        buf.writer().print("sub rcx, rdx\n", .{}) catch unreachable;
+                        buf.writer().print("push rcx\n", .{}) catch unreachable;
+                    },
+                    .hlt => {
+                        buf.writer().print("mov rdi, EXIT_OK\n", .{}) catch unreachable;
+                        buf.writer().print("mov rax, SYS_EXIT\n", .{}) catch unreachable;
+                        buf.writer().print("syscall\n", .{}) catch unreachable;
+                    },
+                    .print_debug => {
+                        buf.writer().print("pop rdi\n", .{}) catch unreachable;
+                        buf.writer().print("call print_debug\n", .{}) catch unreachable;
+                    },
+                    .max_insts => {
+                        @panic("[ERROR] UNREACHABLE");
+                    },
+                }
+            }
+
+            output.code = buf.toOwnedSlice() catch unreachable;
+
+            return output;
+        }
+
+        pub fn target() Target {
+            return Target{
+                .ptr = undefined,
+                .compileFn = compileFn,
+            };
+        }
+    };
+
+    //TODO: REFACTOR THIS SHIT
+    //TODO: ADD DEINIT FN THAT DEALLOCATES THE BUFFER
+    pub const Output = struct {
+        allocator: std.mem.Allocator,
+        code: []u8,
+
+        pub fn init(allocator: std.mem.Allocator, code: []u8) Output {
+            const output: Output = Output{
+                .allocator = allocator,
+                .code = code,
+            };
+
+            return output;
+        }
+    };
+
+    pub fn compile(program: Program, target: Target) Output {
+        return target.compile(program);
+    }
+};
+
+pub const Linker = struct {
+    pub fn link(allocator: std.mem.Allocator, modules: []const Module) Module {
+        _ = modules;
+        var module = Module.init(allocator);
+        _ = module;
+
+        @panic("[ERROR] UNIMPLEMENTED");
+
+        // return module;
+    }
+};
+
+pub const Opcode = enum(u8) {
+    push,
+    pop,
+    add,
+    sub,
+    hlt,
+    print_debug,
+    max_insts,
+};
+
+pub const InstDef = struct {
+    opcode: Opcode,
+    name: []const u8,
+    takes_operand: bool,
+};
+
+pub const Module = struct {
+    pub const Operand = union(enum) {
+        symbol: []const u8,
+        word: Word,
+    };
+
+    pub const Inst = struct {
+        opcode: Opcode,
+        operand: Operand,
+    };
+
+    pub const Symbol = struct {
+        name: []const u8,
+        loc: usize,
+        public: bool,
+    };
+
+    pub const Extern = struct {
+        name: []const u8,
+    };
+
+    const ResolveSymbolError = error{
+        SymbolNotFound,
+    };
+
+    pub const LinkingError = error{
+        ModuleNotLinked,
+    };
+
+    allocator: std.mem.Allocator,
+    insts: std.ArrayList(Inst),
+    inst_count: usize = 0,
+
+    symbols: std.ArrayList(Symbol),
+    symbol_count: usize = 0,
+
+    linked: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator) Module {
+        const module: Module = Module{
+            .allocator = allocator,
+            .insts = std.ArrayList(Inst).init(allocator),
+            .symbols = std.ArrayList(Symbol).init(allocator),
+        };
+
+        return module;
+    }
+
+    pub fn deinit(self: *Module) void {
+        self.insts.deinit();
+        self.symbols.deinit();
+    }
+
+    pub fn pushInst(self: *Module, inst: Inst) void {
+        self.insts.append(inst) catch unreachable;
+        self.inst_count += 1;
+    }
+
+    //TODO: ADD ERROR CHECKING FOR DUPLICATES
+    pub fn pushSymbol(self: *Module, symbol: Symbol) void {
+        self.symbols.append(symbol) catch unreachable;
+        self.symbol_count += 1;
+    }
+
+    pub fn pushExtern(self: *Module, extrn: Extern) void {
+        _ = extrn;
+        _ = self;
+        @panic("[ERROR] UNIMPLEMENTED");
+    }
+
+    fn findSymbol(self: *Module, symbol: []const u8) ResolveSymbolError!usize {
+        _ = self;
+        _ = symbol;
+        @panic("[ERROR] UNIMPLEMENTED");
+    }
+
+    fn computeSymbols(self: *Module) void {
+        _ = self;
+        @panic("[ERROR] UNIMPLEMENTED");
+    }
+
+    //FIXME: THERE IS A BUG THAT I CAN'T DEINIT PROGRAN
+    pub fn toProgram(self: *Module) LinkingError!Program {
+        var program: Program = Program.init(self.allocator);
+
+        if (!self.linked) {
+            return LinkingError.ModuleNotLinked;
+        }
+
+        for (self.insts.items) |inst| {
+            program.pushInst(.{ .opcode = inst.opcode, .operand = inst.operand.word });
+        }
+
+        return program;
+    }
+
+    pub fn saveToFile(self: *Module, path: []const u8) void {
+        _ = self;
+        _ = path;
+        @panic("[ERROR] UNIMPLEMENTED");
+    }
+
+    pub fn loadFromFile(self: *Module, path: []const u8) void {
+        _ = self;
+        _ = path;
+        @panic("[ERROR] UNIMPLEMENTED");
+    }
+};
+
+pub const Program = struct {
+    pub const Inst = struct {
+        opcode: Opcode,
+        operand: Word,
+    };
+
+    pub const Exeception = error{
+        StackOverflow,
+        StackUnderflow,
+    };
+
+    allocator: std.mem.Allocator,
+    insts: std.ArrayList(Inst),
+    inst_count: usize = 0,
+    pc: usize = 0,
+
+    pub fn init(allocator: std.mem.Allocator) Program {
+        const program: Program = Program{
+            .allocator = allocator,
+            .insts = std.ArrayList(Inst).init(allocator),
+        };
+
+        return program;
+    }
+
+    pub fn deinit(self: *Program) void {
+        self.insts.deinit();
+    }
+
+    pub fn pushInst(self: *Program, inst: Inst) void {
+        self.insts.append(inst) catch unreachable;
+        self.inst_count += 1;
+    }
+
+    fn executeInst(self: *Program, machine: *Machine) Exeception!void {
+        const inst: Inst = self.insts.items[self.pc];
+
+        switch (inst.opcode) {
+            .push => {
+                if (machine.sp >= STACK_MAX) {
+                    return Exeception.StackOverflow;
+                }
+
+                machine.stack[machine.sp] = inst.operand;
+                machine.sp += 1;
+
+                self.pc += 1;
+            },
+            .pop => {
+                if (machine.sp <= 0) {
+                    return Exeception.StackUnderflow;
+                }
+
+                machine.sp -= 1;
+
+                self.pc += 1;
+            },
+            .add => {
+                if (machine.sp < 2) {
+                    return Exeception.StackUnderflow;
+                }
+
+                const a: Word = machine.stack[machine.sp - 1];
+                const b: Word = machine.stack[machine.sp - 2];
+                machine.stack[machine.sp - 2] = a + b;
+
+                machine.sp -= 1;
+                self.pc += 1;
+            },
+            .sub => {
+                if (machine.sp < 2) {
+                    return Exeception.StackUnderflow;
+                }
+
+                const a: Word = machine.stack[machine.sp - 1];
+                const b: Word = machine.stack[machine.sp - 2];
+                machine.stack[machine.sp - 2] = b - a;
+
+                machine.sp -= 1;
+                self.pc += 1;
+            },
+            .hlt => {
+                machine.hlt = true;
+            },
+            .print_debug => {
+                const word: Word = machine.stack[machine.sp - 1];
+                printWord(word);
+
+                machine.sp -= 1;
+                self.pc += 1;
+            },
+            .max_insts => {
+                @panic("[ERROR] UNREACHABLE");
+            },
         }
     }
 
-    //FIXME: rewrite it
-    //TODO: add better errors
-    pub fn saveToFile(self: Machine, path: []const u8) void {
-        var file = std.fs.cwd().createFile(path, .{}) catch {
-            @panic("[ERORR] error while saving program to binary file");
-        };
-        defer file.close();
+    //TODO: UNIMPLEMENT
+    pub fn saveToFile(self: Machine, path: []const u8) !void {
+        _ = path;
+        _ = self;
+        // var file = try std.fs.cwd().createFile(path, .{});
+        // defer file.close();
 
-        var buf_writer = std.io.bufferedWriter(file.writer());
-        var out_stream = buf_writer.writer();
-        defer buf_writer.flush() catch {
-            @panic("[ERORR] error while saving program to binary file");
-        };
+        // var buf_writer = std.io.bufferedWriter(file.writer());
+        // var out_stream = buf_writer.writer();
 
-        const meta_data = MetaData.init(self);
+        // const meta_data = MetaData.init(self.program_size, 0);
 
-        out_stream.writeIntLittle(u32, meta_data.magic) catch {
-            @panic("[ERORR] error while saving program to binary file");
-        };
+        // _ = try out_stream.writeInt(u32, meta_data.magic, .Little);
+        // _ = try out_stream.writeInt(u16, meta_data.version, .Little);
+        // _ = try out_stream.writeInt(u64, meta_data.program_size, .Little);
+        // _ = try out_stream.writeInt(u64, meta_data.memory_size, .Little);
 
-        out_stream.writeIntLittle(u16, meta_data.version) catch {
-            @panic("[ERORR] error while saving program to binary file");
-        };
+        // _ = try out_stream.writeAll(@as([*]const u8, @ptrCast(&self.program))[0 .. self.program_size * @sizeOf(Inst)]);
 
-        out_stream.writeIntLittle(u64, meta_data.program_size) catch {
-            @panic("[ERORR] error while saving program to binary file");
-        };
-
-        out_stream.writeIntLittle(u64, meta_data.memory_size) catch {
-            @panic("[ERORR] error while saving program to binary file");
-        };
-
-        for (self.program[0..self.program_size]) |inst| {
-            out_stream.writeIntLittle(u8, @intFromEnum(inst.type)) catch {
-                @panic("[ERORR] error while saving program to binary file");
-            };
-
-            out_stream.writeIntLittle(Word, inst.operand0) catch {
-                @panic("[ERORR] error while saving program to binary file");
-            };
-        }
+        // try buf_writer.flush();
     }
 
-    //FIXME: rewrite it
-    //TODO: add error checking for file loading
-    //TODO: add better errors
-    pub fn loadFromFile(self: *Machine, path: []const u8) void {
-        var file = std.fs.cwd().openFile(path, .{}) catch {
-            @panic("[ERORR] error while loading program from binary file");
-        };
-        defer file.close();
+    //TODO: UNIMPLEMENT
+    pub fn loadFromFile(self: *Machine, path: []const u8) !void {
+        _ = path;
+        _ = self;
+        // var file = try std.fs.cwd().openFile(path, .{});
+        // defer file.close();
 
-        var buf_reader = std.io.bufferedReader(file.reader());
-        var in_stream = buf_reader.reader();
+        // var buf_reader = std.io.bufferedReader(file.reader());
+        // var in_stream = buf_reader.reader();
 
-        var meta_data: MetaData = undefined;
+        // var meta_data: MetaData = undefined;
 
-        meta_data.magic = in_stream.readIntLittle(u32) catch {
-            @panic("[ERORR] error while loading program from binary file");
-        };
+        // meta_data.magic = try in_stream.readInt(u32, .Little);
+        // meta_data.version = try in_stream.readInt(u16, .Little);
+        // meta_data.program_size = try in_stream.readInt(u64, .Little);
+        // meta_data.memory_size = try in_stream.readInt(u64, .Little);
 
-        meta_data.version = in_stream.readIntLittle(u16) catch {
-            @panic("[ERORR] error while loading program from binary file");
-        };
+        // self.program_size = meta_data.program_size;
 
-        meta_data.program_size = in_stream.readIntLittle(u64) catch {
-            @panic("[ERORR] error while loading program from binary file");
-        };
-
-        meta_data.memory_size = in_stream.readIntLittle(u64) catch {
-            @panic("[ERORR] error while loading program from binary file");
-        };
-
-        self.program_size = meta_data.program_size;
-
-        for (0..self.program_size) |i| {
-            self.program[i].type = @enumFromInt(in_stream.readIntLittle(u8) catch {
-                @panic("[ERORR] error while loading program from binary file");
-            });
-
-            self.program[i].operand0 = in_stream.readIntLittle(Word) catch {
-                @panic("[ERORR] error while loading program from binary file");
-            };
-        }
-    }
-
-    fn nativeWrite(machine: *Machine) Exception!void {
-        _ = machine;
-        // std.debug.print("", .{});
-    }
-
-    fn nativeDebugPrint(machine: *Machine) Exception!void {
-        std.debug.print("{}\n", .{machine.registers[0]});
+        // _ = try in_stream.readAll(@as([*]u8, @ptrCast(&self.program))[0 .. self.program_size * @sizeOf(Inst)]);
     }
 };
