@@ -11,16 +11,6 @@
 #define LVM_API
 #endif
 
-// NOTE: Stolen from https://github.com/tsoding/bm
-#if defined(_MSC_VER)
-#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
-#elif defined(__GNUC__) || defined(__clang__)
-#define LVM_PLATFORM_LINUX 1
-#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
-#else
-#error "Packed attributes for struct is not implemented for this compiler. This may result in a program working incorrectly. Feel free to fix that and submit a Pull Request to https://github.com/AbnAlsrag/LVM"
-#endif
-
 #define LVM_MAGIC 0x45564F4C
 #define LVM_VERSION 0
 
