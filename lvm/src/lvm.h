@@ -3,6 +3,7 @@
 #ifndef _LVM_H_
 #define _LVM_H_
 
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -32,6 +33,7 @@ typedef union {
     int64_t as_i64;
     uint64_t as_u64;
     double as_f64;
+    // TODO: SEE IF AS_PTR IS USEFUL
     // void* as_ptr;
 } lvm_Word;
 
@@ -169,7 +171,6 @@ LVM_API lvm_Trap lvm_machine_run(lvm_Machine *machine, int64_t limit);
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -276,6 +277,14 @@ LVM_API void lvm_machine_advance(lvm_Machine *machine);
         lvm_Machine_Stack_Pop((MACHINE_P), &__MACRO__B__);                                                        \
         lvm_Word __MACRO__RESULT__ = { .as_##OUT_TYPE = __MACRO__A__.as_##IN_TYPE OP __MACRO__B__.as_##IN_TYPE }; \
         lvm_Machine_Stack_Push((MACHINE_P), __MACRO__RESULT__);                                                   \
+    } while (0)
+
+#define lvm_Unary_Inst(MACHINE_P, OUT_TYPE, IN_TYPE, OP)                                \
+    do {                                                                                \
+        lvm_Word __MACRO__A__;                                                          \
+        lvm_Machine_Stack_Pop((MACHINE_P), &__MACRO__A__);                              \
+        lvm_Word __MACRO__RESULT__ = { .as_##OUT_TYPE = OP __MACRO__A__.as_##IN_TYPE }; \
+        lvm_Machine_Stack_Push((MACHINE_P), __MACRO__RESULT__);                         \
     } while (0)
 
 #define lvm_Cast_Inst(MACHINE_P, SRC, DST, CAST)                                      \
@@ -442,43 +451,19 @@ LVM_API lvm_Trap lvm_machine_execute_inst(lvm_Machine *machine) {
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_INCI: {
-            lvm_Word a;
-
-            lvm_Machine_Stack_Pop(machine, &a);
-
-            lvm_Word result = { .as_i64 = a.as_i64 + 1 };
-
-            lvm_Machine_Stack_Push(machine, result);
+            lvm_Unary_Inst(machine, i64, i64, ++);
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_INCF: {
-            lvm_Word a;
-
-            lvm_Machine_Stack_Pop(machine, &a);
-
-            lvm_Word result = { .as_f64 = a.as_f64 + 1.0 };
-
-            lvm_Machine_Stack_Push(machine, result);
+            lvm_Unary_Inst(machine, f64, f64, ++);
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_DECI: {
-            lvm_Word a;
-
-            lvm_Machine_Stack_Pop(machine, &a);
-
-            lvm_Word result = { .as_i64 = a.as_i64 - 1 };
-
-            lvm_Machine_Stack_Push(machine, result);
+            lvm_Unary_Inst(machine, i64, i64, --);
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_DECF: {
-            lvm_Word a;
-
-            lvm_Machine_Stack_Pop(machine, &a);
-
-            lvm_Word result = { .as_f64 = a.as_f64 - 1.0 };
-
-            lvm_Machine_Stack_Push(machine, result);
+            lvm_Unary_Inst(machine, f64, f64, --);
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_ADDI: {
@@ -599,7 +584,7 @@ LVM_API lvm_Trap lvm_machine_execute_inst(lvm_Machine *machine) {
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_NOT: {
-            assert(false && "UNIMPLEMENTED");
+            lvm_Unary_Inst(machine, u64, u64, !);
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_OR: {
@@ -611,7 +596,7 @@ LVM_API lvm_Trap lvm_machine_execute_inst(lvm_Machine *machine) {
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_NOTB: {
-            assert(false && "UNIMPLEMENTED");
+            lvm_Unary_Inst(machine, u64, u64, ~);
             lvm_machine_advance(machine);
         } break;
         case LVM_INST_ORB: {
